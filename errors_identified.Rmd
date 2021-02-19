@@ -1,0 +1,187 @@
+--
+title: "Troubleshooting Practice"
+output: pdf_document
+auther: "Your Name"
+date: "2-18-2020
+editor_options: 
+  chunk_output_type: console
+---
+
+## Errors identified
+
+- Error #1: missing quotation in date
+- Error #2: author in YAML header misspelled
+- Error #3: YAML header missing a -
+- Error #4: `nycflights13` not included in `load-packages` code chunk
+- Error #5: `load-packages` below code chunk using `dplyr`
+- Error #6: `load-packages` code chunk has option `eval = FALSE`
+- Error #7: duplicate code chunk name `late-flights`
+- Error #8: incorrect code chunk formatting of `cinnabon`: `{r}{cinnabon}`
+- Error #9: `count()` in `jfk-delay` should be `n()`
+- Error #10: `flights` in `jfk-delay` should be `origin`
+- Error #11: missing `na.rm` argument in `jfk-delay`
+- Error #12: variables in `jfk-delay` `summarize()` not named
+- Error #13: evaluate `jfk-delay`
+- Error #14: stray `+` in `plot-evening-flights`
+- Error #15: `jfk_monthly` misspelled in `plot-evening-flights`
+- Error #16: missing `mapping = aes(...)` in `plot-evening-flights` 
+- Error #17: didn't close out `rdu-ontime` code chunk with backticks
+- Error #18: `rdu-ontime` has `=` not `==`
+- Error #19: missing `%>%` in `rdu-ontime`
+- Error #20: incorrect code chunk formatting in `barplot-by-dest`
+- Error #21: `%in%` not `in` in `barplot-by-dest`
+- Error #22: should be `geom_violin` in `boxplots-by-dest`
+- Error #23: argument of `geom_violin()` is `draw_quantiles` not `quantiles`
+- Error #24: `distance / (air_time / 60)` in `boxplots-by-dest`
+- Error #25: `delays-by-month` code chunk not properly formatted: two backticks
+- Error #26: missing final `)` in `delays-by-month`
+- Error #27: unexpected $\mu$ character at end of document
+
+This document contains a brief exploratory data analysis of the `flights` 
+data from the `nycflights13` package that we examined earlier in the semester.
+Recall this dataset contains information on all flights departing New York City
+(JFK, LGA, and EWR) in 2013.
+
+The author of this document is interested in traveling from New York City 
+and used the `flights` data to plan his trip. Unfortunately, a number of coding
+errors were made. Some of these errors will prevent the file from knitting,
+others will fail to do what is stated in the document, and others will fail 
+quietly.
+
+Your task is to knit the document and investigate the errors. In the space
+provided below, make a note of each error. When you are finished the document 
+should knit completely without errors, and all code chunks should do the task 
+stated in the document. 
+
+## NYC flights investigation
+
+I'm planning a trip departing from one of the three New York City airports. 
+Before I do any investigation, I would like to know how many flights depart 
+late, how many flights arrive late, and how many flights depart late but still
+manage to arrive early.
+
+I'll use the `filter()` data-wrangling function from `dplyr` to do this.
+
+```{r late-flights}
+flights %>%
+  filter(dep_delay > 0)
+
+flights %>%
+  filter(arr_delay > 0)
+
+flights %>%
+  filter(dep_delay < 0, arr_delay > 0)
+```
+
+```{r load-packages, eval = FALSE, message = FALSE}
+library(tidyverse)
+```
+
+
+If my flight is late, I want a free meal as compensation. Some flights provide
+vouchers if a flight is delayed more than three hours. How many flights 
+departing New York City in 2013 led to passengers receiving meal vouchers? 
+
+```{r late-flights}
+flights %>%
+  filter(dep_delay > 180)
+```
+
+I hate waiting in line at Cinnabon and when there are many flights departing 
+there is a line at Cinnabon. How many flights departed during normal business
+hours from 9:00 - 5:00 PM? How many departed in the evening between 5:00 PM
+and 9:00 PM?
+
+```{r}{cinnabon}
+flights %>%
+  filter(sched_dep_time >= 900, sched_dep_time <= 1700)
+
+flights %>%
+  filter(sched_dep_time >= 1700, sched_dep_time <= 2100)
+```
+
+I'll plan to leave in the evening to make sure I can get Cinnabon without 
+waiting. Also, it looks like JFK is the only airport that has a Cinnabon so I 
+will leave from there.
+
+Now I need to decide when to leave. I'll summarize the data by month,
+considering only flights departing from JFK. I'll use a `group_by()` and a
+`summarize()` to find the count of flights and the median and mean of the
+departure delay.
+
+If you get an error for this code, try running **line by line** as we 
+demonstrated in class to troubleshoot.
+
+```{r jfk-delay, eval = FALSE}
+jfk_monthly <- flights %>%
+  filter(flights == "JFK") %>%
+  group_by(month) %>%
+  summarize(n = count(),
+            mean(dep_delay),
+            sd(dep_delay))
+```
+
+Let's plot this!
+
+```{r plot-evening-flights}
+ggplot(data = jfk_montly, 
+       x = factor(month), y = mean_delay) + 
+  geom_point() +
+```
+
+What percent of flights to RDU from JFK arrive on time? 
+
+```{r rdu-ontime}
+flights %>%
+  filter(origin == "JFK") %>%
+  filter(dest = "RDU")
+
+flights %>%
+  filter(origin == "JFK")
+  filter(dest == "RDU", arr_delay <= 0)
+
+
+It looks like of the 3,100 flights from JFK to RDU, 1,719 are on time, so 
+about 55% of flights.
+
+How many flights went to RDU, GSO, and CLT from the three New York City 
+airports in 2013? 
+
+```{rbarplot-by-dest}
+flights %>%
+  filter(dest in c("RDU", "GSO", "CLT")) %>%
+  ggplot(aes(x = dest)) + 
+  geom_bar()
+```
+
+I like going fast. Let's mutate a new variable for the average speed of flights
+going to RDU, GSO, and CLT.
+
+```{r boxplots-by-dest}
+flights %>%
+  filter(dest %in% c("RDU", "GSO", "CLT")) %>%
+  mutate(mph = distance / (air_time * 60)) %>%
+  ggplot(aes(x = dest, y = mph)) + 
+  geom_violinplot(quantiles = 0.50)
+```
+
+Considering only flights that weren't cancelled, let's find the mean, median, 
+standard deviation, and IQR of the arrival delays for each month.
+
+
+``{r delays-by-month}
+flights %>%
+  filter(!is.na(dep_delay), !is.na(arr_delay)) %>%
+group_by(month) %>%
+  summarize(mean_delay = mean(arr_delay),
+            median_delay = median(arr_delay),
+            sd_delay = sd(arr_delay),
+            IQR_delay = IQR(arr_delay)
+```
+
+The worst month to travel appears to be July. The mean delay is 16.7 
+minutes, and the standard deviation is 57.1. If we consider these flights to 
+be a convenience sample of the population of flights, 16.7 is an estimate of the
+true population mean delay, represented by the Greek letter μ. We can represent
+the true population standard deviation using $\sigma$.
+
